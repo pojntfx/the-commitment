@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -76,9 +77,7 @@ var submitCommand = &cobra.Command{
 			return err
 		}
 
-		subject := strings.Split(commit.Message, "\n")[0]
-
-		patchFileName := fmt.Sprintf("%v", time.Now().Unix()) + "-" + subject + ".patch"
+		patchFileName := fmt.Sprintf("%v", time.Now().Unix()) + "-" + url.PathEscape(strings.Split(commit.Message, "\n")[0]) + ".patch"
 
 		log = log.With("patchFilename", patchFileName)
 
@@ -98,16 +97,15 @@ var submitCommand = &cobra.Command{
 		patchText := fmt.Sprintf(`From %v Mon Sep 17 00:00:00 2001
 From: %v
 Date: %v
-Subject: [PATCH] %v
-
-Signed-off-by: %v
----
+Subject: [PATCH] %v---
 %v
-`, commit.Hash.String(), commit.Author.String(), commit.Author.When.Format(time.RFC1123Z), subject, commit.Author.String(), patch.String())
+`, commit.Hash.String(), commit.Author.String(), commit.Author.When.Format(time.RFC1123Z), commit.Message, patch.String())
 
 		log = log.With("patchText", patchText)
 
-		log.Debug("Writing patch")
+		log.Debug("Writing patch to ledger repo")
+
+		fmt.Println(patchText)
 
 		return nil
 	},

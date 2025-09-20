@@ -1,0 +1,120 @@
+package cmd
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/go-git/go-git/v6"
+	"github.com/go-git/go-git/v6/plumbing/object"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+)
+
+var submitCommand = &cobra.Command{
+	Use:     "submit [repo-dir]",
+	Aliases: []string{"sub", "s"},
+	Short:   "Submit a patch to your ledger based on a repo's last commit",
+	Args:    cobra.RangeArgs(0, 1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := viper.BindPFlags(cmd.PersistentFlags()); err != nil {
+			return err
+		}
+
+		ctx, cancel := context.WithCancel(cmd.Context())
+		defer cancel()
+
+		ledgerRepoDirectory, err := getLedgerRepo(ctx, log)
+		if err != nil {
+			return err
+		}
+
+		log := log.With("ledgerRepoDirectory", ledgerRepoDirectory)
+
+		var sourceRepoDirectory string
+		if len(args) > 0 {
+			sourceRepoDirectory = args[0]
+		} else {
+			sourceRepoDirectory, err = os.Getwd()
+			if err != nil {
+				return err
+			}
+		}
+
+		log = log.With("sourceRepoDirectory", sourceRepoDirectory)
+
+		log.Debug("Opening source repo")
+
+		repo, err := git.PlainOpen(sourceRepoDirectory)
+		if err != nil {
+			return err
+		}
+
+		log.Debug("Getting remote URL")
+
+		remotes, err := repo.Remotes()
+		if err != nil {
+			return err
+		}
+
+		var remoteURL string
+		if len(remotes) > 0 && len(remotes[0].Config().URLs) > 0 {
+			remoteURL = remotes[0].Config().URLs[0]
+		}
+
+		log = log.With("remoteURL", remoteURL)
+
+		ref, err := repo.Head()
+		if err != nil {
+			return err
+		}
+
+		commit, err := repo.CommitObject(ref.Hash())
+		if err != nil {
+			return err
+		}
+
+		subject := strings.Split(commit.Message, "\n")[0]
+
+		patchFileName := fmt.Sprintf("%v", time.Now().Unix()) + "-" + subject + ".patch"
+
+		log = log.With("patchFilename", patchFileName)
+
+		var parent *object.Commit
+		if commit.NumParents() > 0 {
+			parent, err = commit.Parent(0)
+			if err != nil {
+				return err
+			}
+		}
+
+		patch, err := parent.Patch(commit)
+		if err != nil {
+			return err
+		}
+
+		patchText := fmt.Sprintf(`From %v Mon Sep 17 00:00:00 2001
+From: %v
+Date: %v
+Subject: [PATCH] %v
+
+Signed-off-by: %v
+---
+%v
+`, commit.Hash.String(), commit.Author.String(), commit.Author.When.Format(time.RFC1123Z), subject, commit.Author.String(), patch.String())
+
+		log = log.With("patchText", patchText)
+
+		log.Debug("Writing patch")
+
+		return nil
+	},
+}
+
+func init() {
+	viper.AutomaticEnv()
+
+	indexCommand.AddCommand(submitCommand)
+}

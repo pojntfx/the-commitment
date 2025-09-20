@@ -5,13 +5,19 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/go-git/go-git/v6"
 	"github.com/go-git/go-git/v6/plumbing/object"
+	"github.com/go-git/go-git/v6/plumbing/transport"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+)
+
+var (
+	errRepoDirRemoteMissing = errors.New("remote is missing from repo directory")
 )
 
 var submitCommand = &cobra.Command{
@@ -62,7 +68,14 @@ var submitCommand = &cobra.Command{
 
 		var remoteURL string
 		if len(remotes) > 0 && len(remotes[0].Config().URLs) > 0 {
-			remoteURL = remotes[0].Config().URLs[0]
+			ep, err := transport.NewEndpoint(remotes[0].Config().URLs[0])
+			if err != nil {
+				return err
+			}
+
+			remoteURL = filepath.Join(filepath.Clean(ep.Host), filepath.Clean(strings.TrimPrefix(ep.Path, "/")))
+		} else {
+			return errRepoDirRemoteMissing
 		}
 
 		log = log.With("remoteURL", remoteURL)

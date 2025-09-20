@@ -77,21 +77,22 @@ var submitCommand = &cobra.Command{
 			return err
 		}
 
-		patchFileName := fmt.Sprintf("%v", time.Now().Unix()) + "-" + url.PathEscape(strings.Split(commit.Message, "\n")[0]) + ".patch"
-
-		log = log.With("patchFilename", patchFileName)
-
-		var parent *object.Commit
+		var patch *object.Patch
 		if commit.NumParents() > 0 {
-			parent, err = commit.Parent(0)
+			parent, err := commit.Parent(0)
 			if err != nil {
 				return err
 			}
-		}
 
-		patch, err := parent.Patch(commit)
-		if err != nil {
-			return err
+			patch, err = parent.Patch(commit)
+			if err != nil {
+				return err
+			}
+		} else {
+			patch, err = commit.Patch(nil)
+			if err != nil {
+				return err
+			}
 		}
 
 		patchText := fmt.Sprintf(`From %v Mon Sep 17 00:00:00 2001

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -115,11 +116,29 @@ Subject: [PATCH] %v---
 %v
 `, commit.Hash.String(), commit.Author.String(), commit.Author.When.Format(time.RFC1123Z), commit.Message, patch.String())
 
-		log = log.With("patchText", patchText)
+		var (
+			patchFileName = fmt.Sprintf("%v", commit.Author.When.Unix()) + "-" + url.PathEscape(strings.Split(commit.Message, "\n")[0]) + ".patch"
+			patchFilePath = filepath.Join(ledgerRepoDirectory, remoteURL, patchFileName)
+		)
+
+		log = log.With("patchFilePath", patchFilePath)
 
 		log.Debug("Writing patch to ledger repo")
 
-		fmt.Println(patchText)
+		if err := os.MkdirAll(filepath.Dir(patchFilePath), os.ModePerm); err != nil {
+			return err
+		}
+
+		if err := os.WriteFile(patchFilePath, []byte(patchText), os.ModePerm); err != nil {
+			return err
+		}
+
+		patchFilePathRel, err := filepath.Rel(ledgerRepoDirectory, patchFilePath)
+		if err != nil {
+			return err
+		}
+
+		fmt.Println("Patch", patchFilePathRel, "submitted successfully")
 
 		return nil
 	},

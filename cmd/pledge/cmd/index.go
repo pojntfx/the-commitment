@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/adrg/xdg"
+	"github.com/go-git/go-git/v6"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -62,7 +63,7 @@ For more information, please visit https://github.com/pojntfx/the-commitment.`,
 	}
 )
 
-func getLedgerRepo(ctx context.Context, log *slog.Logger) (string, error) {
+func verifyLedgerRepo(ctx context.Context, log *slog.Logger) (*git.Repository, string, error) {
 	ledgerRepoDirectory := viper.GetString(ledgerKey)
 
 	log = log.With("ledgerRepoDirectory", ledgerRepoDirectory)
@@ -73,20 +74,40 @@ func getLedgerRepo(ctx context.Context, log *slog.Logger) (string, error) {
 		if errors.Is(err, os.ErrNotExist) {
 			log.ErrorContext(ctx, "Ledger repo directory does not exist, please clone it first", "err", err)
 
-			return "", err
+			return nil, "", err
 		}
 
-		return "", err
+		return nil, "", err
 	}
 
-	return ledgerRepoDirectory, nil
+	log.Debug("Opening ledger repo")
+
+	repo, err := git.PlainOpen(ledgerRepoDirectory)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if viper.GetBool(pullKey) {
+		log.Debug("Pulling ledger repo")
+
+		worktree, err := repo.Worktree()
+		if err != nil {
+			return nil, "", err
+		}
+
+		if err := worktree.Pull(&git.PullOptions{}); err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {
+			return nil, "", err
+		}
+	}
+
+	return repo, ledgerRepoDirectory, nil
 }
 
 func Execute() error {
 	indexCommand.PersistentFlags().BoolP(verboseKey, "v", false, "Whether to enable verbose logging")
 	indexCommand.PersistentFlags().StringP(configKey, "c", "", "Config file to use (by default "+indexCommand.Use+".yaml in the XDG config directory is read if it exists)")
 	indexCommand.PersistentFlags().StringP(ledgerKey, "l", filepath.Join(xdg.StateHome, indexCommand.Use, "ledger"), "Ledger repo directory")
-	indexCommand.PersistentFlags().BoolP(pullKey, "p", false, "Whether to pull the ledger repo before writing to it")
+	indexCommand.PersistentFlags().BoolP(pullKey, "p", true, "Whether to pull the ledger repo before reading from or writing to it")
 
 	if err := viper.BindPFlags(indexCommand.PersistentFlags()); err != nil {
 		return err

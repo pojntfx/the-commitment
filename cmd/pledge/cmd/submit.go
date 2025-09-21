@@ -38,7 +38,7 @@ var submitCommand = &cobra.Command{
 		ctx, cancel := context.WithCancel(cmd.Context())
 		defer cancel()
 
-		ledgerRepoDirectory, err := getLedgerRepo(ctx, log)
+		_, ledgerRepoDirectory, err := verifyLedgerRepo(ctx, log)
 		if err != nil {
 			return err
 		}

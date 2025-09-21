@@ -38,7 +38,7 @@ var submitCommand = &cobra.Command{
 		ctx, cancel := context.WithCancel(cmd.Context())
 		defer cancel()
 
-		_, ledgerRepoDirectory, err := verifyLedgerRepo(ctx, log)
+		ledgerRepo, ledgerRepoDirectory, err := verifyLedgerRepo(ctx, log)
 		if err != nil {
 			return err
 		}
@@ -102,6 +102,11 @@ var submitCommand = &cobra.Command{
 
 		currentCommit := commit
 
+		worktree, err := ledgerRepo.Worktree()
+		if err != nil {
+			return err
+		}
+
 		for i := uint(0); i < numCommits && currentCommit != nil; i++ {
 			var patch *object.Patch
 			if currentCommit.NumParents() > 0 {
@@ -150,7 +155,26 @@ Subject: [PATCH] %v---
 				return err
 			}
 
-			fmt.Println("Patch", patchFilePathRel, "submitted successfully")
+			commitLog.Debug("Adding patch file to git")
+
+			_, err = worktree.Add(patchFilePathRel)
+			if err != nil {
+				return err
+			}
+
+			commitLog.Debug("Committing patch file with original commit info")
+
+			if _, err = worktree.Commit(currentCommit.Message, &git.CommitOptions{
+				Author: &object.Signature{
+					Name:  currentCommit.Author.Name,
+					Email: currentCommit.Author.Email,
+					When:  currentCommit.Author.When,
+				},
+			}); err != nil {
+				return err
+			}
+
+			fmt.Println("Patch", patchFilePathRel, "committed successfully")
 
 			if i+1 < numCommits && currentCommit.NumParents() > 0 {
 				currentCommit, err = currentCommit.Parent(0)
@@ -159,6 +183,15 @@ Subject: [PATCH] %v---
 				}
 			}
 		}
+
+		log.Debug("Pushing commits to remote repo")
+
+		err = ledgerRepo.Push(&git.PushOptions{})
+		if err != nil {
+			return err
+		}
+
+		fmt.Println("All patches pushed to ledger repo remote")
 
 		return nil
 	},

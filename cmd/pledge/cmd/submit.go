@@ -10,15 +10,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/go-git/go-git/v6"
 	"github.com/go-git/go-git/v6/plumbing/object"
 	"github.com/go-git/go-git/v6/plumbing/transport"
+	"github.com/pojntfx/the-commitment/pkg/pgp"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 const (
 	commitsKey = "commits"
+	keyKey     = "key"
+	signKeyKey = "sign"
 )
 
 var (
@@ -107,6 +111,7 @@ var submitCommand = &cobra.Command{
 			return err
 		}
 
+		commitsToPush := 0
 		for i := uint(0); i < numCommits && currentCommit != nil; i++ {
 			var patch *object.Patch
 			if currentCommit.NumParents() > 0 {
@@ -162,6 +167,25 @@ Subject: [PATCH] %v---
 				return err
 			}
 
+			var signKey *openpgp.Entity
+			if viper.GetBool(signKeyKey) {
+				var keyID *string
+				if v := viper.GetString(keyKey); v != "" {
+					keyID = &v
+				}
+
+				commitLog = commitLog.With("keyID", keyID)
+
+				commitLog.Debug("Reading private key to sign commit with")
+
+				secretKey, err := pgp.GetPGPSecretKey(ctx, keyID)
+				if err != nil {
+					return err
+				}
+
+				signKey = secretKey.GetEntity()
+			}
+
 			commitLog.Debug("Committing patch file with original commit info")
 
 			if _, err = worktree.Commit(currentCommit.Message, &git.CommitOptions{
@@ -170,11 +194,18 @@ Subject: [PATCH] %v---
 					Email: currentCommit.Author.Email,
 					When:  currentCommit.Author.When,
 				},
-			}); err != nil {
-				return err
-			}
+				SignKey: signKey,
+			}); err == nil {
+				fmt.Println("Patch", patchFilePathRel, "committed successfully")
 
-			fmt.Println("Patch", patchFilePathRel, "committed successfully")
+				commitsToPush++
+			} else {
+				if !errors.Is(err, git.ErrEmptyCommit) {
+					return err
+				}
+
+				fmt.Println("Skipped committing patch", patchFilePathRel, "since it already exists in the ledger repo")
+			}
 
 			if i+1 < numCommits && currentCommit.NumParents() > 0 {
 				currentCommit, err = currentCommit.Parent(0)
@@ -184,10 +215,15 @@ Subject: [PATCH] %v---
 			}
 		}
 
+		if commitsToPush <= 0 {
+			fmt.Println("All patches already pushed to ledger repo remote, no need to push again")
+
+			return nil
+		}
+
 		log.Debug("Pushing commits to remote repo")
 
-		err = ledgerRepo.Push(&git.PushOptions{})
-		if err != nil {
+		if err := ledgerRepo.Push(&git.PushOptions{}); err != nil {
 			return err
 		}
 
@@ -199,6 +235,8 @@ Subject: [PATCH] %v---
 
 func init() {
 	submitCommand.PersistentFlags().UintP(commitsKey, "n", 1, "Number of commits to submit patches for")
+	submitCommand.PersistentFlags().StringP(keyKey, "k", "", "PGP key ID for signing (default uses default key)")
+	submitCommand.PersistentFlags().BoolP(signKeyKey, "s", true, "Whether to sign the commit for a patch")
 
 	viper.AutomaticEnv()
 

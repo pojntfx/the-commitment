@@ -11,9 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-git/go-git/v6"
 	"github.com/go-git/go-git/v6/plumbing/object"
-	"github.com/go-git/go-git/v6/plumbing/storer"
 	"github.com/spf13/cobra"
 )
 
@@ -44,57 +42,75 @@ var checkCommand = &cobra.Command{
 			return err
 		}
 
-		commitLog, err := ledgerRepo.Log(&git.LogOptions{From: ref.Hash()})
+		commit, err := ledgerRepo.CommitObject(ref.Hash())
 		if err != nil {
 			return err
 		}
-		defer commitLog.Close()
 
 		var (
 			now      = time.Now()
 			today    = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 			tomorrow = today.AddDate(0, 0, 1)
-
-			todayCommit *object.Commit
 		)
-		if err = commitLog.ForEach(func(c *object.Commit) error {
-			commitDate := c.Author.When
-			if commitDate.After(today) && commitDate.Before(tomorrow) {
-				todayCommit = c
-
-				return storer.ErrStop
-			}
-
-			if commitDate.Before(today) {
-				return storer.ErrStop
-			}
-
-			return nil
-		}); err != nil {
-			return err
+		commitDate := commit.Author.When
+		if !(commitDate.After(today) && commitDate.Before(tomorrow)) {
+			return errNoCommitFoundForToday
 		}
 
-		if todayCommit == nil {
-			return errNoCommitFoundForToday
+		var patch *object.Patch
+		if commit.NumParents() > 0 {
+			parent, err := commit.Parent(0)
+			if err != nil {
+				return err
+			}
+
+			patch, err = parent.Patch(commit)
+			if err != nil {
+				return err
+			}
+		} else {
+			patch, err = commit.Patch(nil)
+			if err != nil {
+				return err
+			}
+		}
+
+		var (
+			repo          string
+			patchFilePath string
+		)
+		for _, fp := range patch.FilePatches() {
+			if _, to := fp.Files(); to != nil && strings.HasSuffix(to.Path(), ".patch") {
+				repo = filepath.Dir(to.Path())
+				patchFilePath = to.Path()
+
+				break
+			}
 		}
 
 		logOutput, logInput := io.Pipe()
 		go func() {
 			defer logInput.Close()
 
-			if tree, err := todayCommit.Tree(); err == nil {
-				tree.Files().ForEach(func(f *object.File) error {
-					if strings.HasSuffix(f.Name, ".patch") {
-						repo := filepath.Dir(f.Name)
-						if content, err := f.Contents(); err == nil {
-							fmt.Fprintf(logInput, "Repo: %v\n%s", repo, content)
-						}
+			fmt.Fprintf(logInput, "Repo: %v\n", repo)
 
-						return storer.ErrStop
-					}
-					return nil
-				})
+			tree, err := commit.Tree()
+			if err != nil {
+				return
 			}
+
+			file, err := tree.File(patchFilePath)
+			if err != nil {
+				return
+			}
+
+			reader, err := file.Reader()
+			if err != nil {
+				return
+			}
+			defer reader.Close()
+
+			io.Copy(logInput, reader)
 		}()
 
 		pager := os.Getenv("PAGER")
@@ -107,7 +123,7 @@ var checkCommand = &cobra.Command{
 		pagerCmd.Stdout = os.Stdout
 		pagerCmd.Stderr = os.Stderr
 
-		log.Debug("Writing log output to pager", "pager", pager)
+		log.Debug("Writing commit output to pager", "pager", pager)
 
 		if err := pagerCmd.Run(); err != nil {
 			return err

@@ -35,7 +35,7 @@ var checkCommand = &cobra.Command{
 
 		log := log.With("ledgerRepoDirectory", ledgerRepoDirectory)
 
-		log.Debug("Checking for today's commit in ledger repo")
+		log.DebugContext(ctx, "Checking for today's commit in ledger repo")
 
 		ref, err := ledgerRepo.Head()
 		if err != nil {
@@ -123,7 +123,7 @@ var checkCommand = &cobra.Command{
 		pagerCmd.Stdout = os.Stdout
 		pagerCmd.Stderr = os.Stderr
 
-		log.Debug("Writing commit output to pager", "pager", pager)
+		log.DebugContext(ctx, "Writing commit output to pager", "pager", pager)
 
 		if err := pagerCmd.Run(); err != nil {
 			return err

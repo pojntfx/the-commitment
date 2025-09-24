@@ -39,7 +39,7 @@ For more information, please visit https://github.com/pojntfx/the-commitment.`,
 			if viper.IsSet(configKey) {
 				viper.SetConfigFile(viper.GetString(configKey))
 
-				log.Debug("Config key set, reading from file", "path", viper.GetViper().ConfigFileUsed())
+				log.DebugContext(cmd.Context(), "Config key set, reading from file", "path", viper.GetViper().ConfigFileUsed())
 
 				if err := viper.ReadInConfig(); err != nil {
 					return err
@@ -51,7 +51,7 @@ For more information, please visit https://github.com/pojntfx/the-commitment.`,
 				viper.SetConfigName(configName)
 				viper.AddConfigPath(configBase)
 
-				log.Debug("Config key not set, reading from default location", "path", filepath.Join(configBase, configName))
+				log.DebugContext(cmd.Context(), "Config key not set, reading from default location", "path", filepath.Join(configBase, configName))
 
 				if err := viper.ReadInConfig(); err != nil && !errors.As(err, &viper.ConfigFileNotFoundError{}) {
 					return err
@@ -68,7 +68,7 @@ func verifyLedgerRepo(ctx context.Context, log *slog.Logger) (*git.Repository, s
 
 	log = log.With("ledgerRepoDirectory", ledgerRepoDirectory)
 
-	log.Debug("Checking whether ledger repo directory exists")
+	log.DebugContext(ctx, "Checking whether ledger repo directory exists")
 
 	if _, err := os.Stat(ledgerRepoDirectory); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -80,7 +80,7 @@ func verifyLedgerRepo(ctx context.Context, log *slog.Logger) (*git.Repository, s
 		return nil, "", err
 	}
 
-	log.Debug("Opening ledger repo")
+	log.DebugContext(ctx, "Opening ledger repo")
 
 	repo, err := git.PlainOpen(ledgerRepoDirectory)
 	if err != nil {
@@ -88,7 +88,7 @@ func verifyLedgerRepo(ctx context.Context, log *slog.Logger) (*git.Repository, s
 	}
 
 	if viper.GetBool(pullKey) {
-		log.Debug("Pulling ledger repo")
+		log.DebugContext(ctx, "Pulling ledger repo")
 
 		worktree, err := repo.Worktree()
 		if err != nil {

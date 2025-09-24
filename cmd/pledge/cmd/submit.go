@@ -66,14 +66,14 @@ var submitCommand = &cobra.Command{
 
 		log = log.With("sourceRepoDirectory", sourceRepoDirectory)
 
-		log.Debug("Opening source repo")
+		log.DebugContext(ctx, "Opening source repo")
 
 		repo, err := git.PlainOpen(sourceRepoDirectory)
 		if err != nil {
 			return err
 		}
 
-		log.Debug("Getting remote URL")
+		log.DebugContext(ctx, "Getting remote URL")
 
 		remotes, err := repo.Remotes()
 		if err != nil {
@@ -145,7 +145,7 @@ Subject: [PATCH] %v---
 
 			commitLog := log.With("patchFilePath", patchFilePath)
 
-			commitLog.Debug("Writing patch to ledger repo")
+			commitLog.DebugContext(ctx, "Writing patch to ledger repo")
 
 			if err := os.MkdirAll(filepath.Dir(patchFilePath), os.ModePerm); err != nil {
 				return err
@@ -160,7 +160,7 @@ Subject: [PATCH] %v---
 				return err
 			}
 
-			commitLog.Debug("Adding patch file to git")
+			commitLog.DebugContext(ctx, "Adding patch file to git")
 
 			_, err = worktree.Add(patchFilePathRel)
 			if err != nil {
@@ -176,7 +176,7 @@ Subject: [PATCH] %v---
 
 				commitLog = commitLog.With("keyID", keyID)
 
-				commitLog.Debug("Reading private key to sign commit with")
+				commitLog.DebugContext(ctx, "Reading private key to sign commit with")
 
 				secretKey, err := pgp.GetPGPSecretKey(ctx, keyID)
 				if err != nil {
@@ -186,7 +186,7 @@ Subject: [PATCH] %v---
 				signKey = secretKey.GetEntity()
 			}
 
-			commitLog.Debug("Committing patch file with original commit info")
+			commitLog.DebugContext(ctx, "Committing patch file with original commit info")
 
 			if _, err = worktree.Commit(currentCommit.Message, &git.CommitOptions{
 				Author: &object.Signature{
@@ -221,7 +221,7 @@ Subject: [PATCH] %v---
 			return nil
 		}
 
-		log.Debug("Pushing commits to remote repo")
+		log.DebugContext(ctx, "Pushing commits to remote repo")
 
 		if err := ledgerRepo.Push(&git.PushOptions{}); err != nil {
 			return err

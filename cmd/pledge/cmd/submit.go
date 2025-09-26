@@ -32,7 +32,8 @@ var (
 var submitCommand = &cobra.Command{
 	Use:     "submit [repo-dir]",
 	Aliases: []string{"sub", "s"},
-	Short:   "Submit a patch to your ledger based on a repo's last -n commits",
+	Short:   "Submit a patch to your ledger based on a [repo-dir]'s last -n commits",
+	Long:    "Fetches the last -n commits in [repo-dir], creates patch files for them, commits the patch files to your ledger repo and pushes the ledger repo to its remote",
 	Args:    cobra.RangeArgs(0, 1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := viper.BindPFlags(cmd.PersistentFlags()); err != nil {
@@ -73,7 +74,7 @@ var submitCommand = &cobra.Command{
 			return err
 		}
 
-		log.DebugContext(ctx, "Getting remote URL")
+		log.DebugContext(ctx, "Getting directory from remote URL")
 
 		remotes, err := repo.Remotes()
 		if err != nil {
@@ -160,7 +161,7 @@ Subject: [PATCH] %v---
 				return err
 			}
 
-			commitLog.DebugContext(ctx, "Adding patch file to git")
+			commitLog.DebugContext(ctx, "Staging patch file in ledger repo")
 
 			_, err = worktree.Add(patchFilePathRel)
 			if err != nil {
@@ -176,7 +177,7 @@ Subject: [PATCH] %v---
 
 				commitLog = commitLog.With("keyID", keyID)
 
-				commitLog.DebugContext(ctx, "Reading private key to sign commit with")
+				commitLog.DebugContext(ctx, "Reading private key to sign commit for patch with")
 
 				secretKey, err := pgp.GetPGPSecretKey(ctx, keyID)
 				if err != nil {
@@ -196,7 +197,7 @@ Subject: [PATCH] %v---
 				},
 				SignKey: signKey,
 			}); err == nil {
-				fmt.Println("Patch", patchFilePathRel, "committed successfully")
+				fmt.Printf("Repo: %v\nFrom %v Mon Sep 17 00:00:00 2001\nFrom: %v\nDate: %v\nSubject: [PATCH] %v---\n\n", remoteDir, currentCommit.Hash.String(), currentCommit.Author.String(), currentCommit.Author.When.Format(time.RFC1123Z), currentCommit.Message)
 
 				commitsToPush++
 			} else {
@@ -204,7 +205,7 @@ Subject: [PATCH] %v---
 					return err
 				}
 
-				fmt.Println("Skipped committing patch", patchFilePathRel, "since it already exists in the ledger repo")
+				fmt.Printf("Skipped committing patch %v since it already exists in the ledger repo\n---\n\n", patchFilePathRel)
 			}
 
 			if i+1 < numCommits && currentCommit.NumParents() > 0 {
@@ -221,7 +222,7 @@ Subject: [PATCH] %v---
 			return nil
 		}
 
-		log.DebugContext(ctx, "Pushing commits to remote repo")
+		log.DebugContext(ctx, "Pushing commits for patches to remote repo")
 
 		if err := ledgerRepo.Push(&git.PushOptions{}); err != nil {
 			return err
@@ -234,7 +235,7 @@ Subject: [PATCH] %v---
 }
 
 func init() {
-	submitCommand.PersistentFlags().UintP(commitsKey, "n", 1, "Number of commits to submit patches for")
+	submitCommand.PersistentFlags().UintP(commitsKey, "n", 1, "Number of commits in repo-dir to submit patches for")
 	submitCommand.PersistentFlags().StringP(keyKey, "k", "", "PGP key ID for signing (default uses default key)")
 	submitCommand.PersistentFlags().BoolP(signKeyKey, "s", true, "Whether to sign the commit for a patch")
 

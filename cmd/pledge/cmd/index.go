@@ -26,7 +26,7 @@ var (
 	indexCommand = &cobra.Command{
 		Use:   "pledge",
 		Short: "CLI to interact with a ledger repo for The Commitment",
-		Long: `CLI to interact with a ledger repo for The Commitment. Allows you to submit a patch to your ledger, check if your patch was submitted successfully, and view a log of your recent patch submissions.
+		Long: `CLI to interact with a ledger repo for The Commitment. Allows you to submit patches to your ledger, check if your patch was submitted successfully, and view a log of your recent patch submissions.
 
 For more information, please visit https://github.com/pojntfx/the-commitment.`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {

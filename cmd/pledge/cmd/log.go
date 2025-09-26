@@ -18,7 +18,8 @@ import (
 var logCommand = &cobra.Command{
 	Use:     "log",
 	Aliases: []string{"l"},
-	Short:   "Display all previous commits from the ledger repo",
+	Short:   "List previously submitted patches in your ledger",
+	Long:    "Fetches the last commits from your ledger repository and prints the summaries for each associated patch",
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := context.WithCancel(cmd.Context())
@@ -31,7 +32,7 @@ var logCommand = &cobra.Command{
 
 		log := log.With("ledgerRepoDirectory", ledgerRepoDirectory)
 
-		log.DebugContext(cmd.Context(), "Getting commit log from ledger repo")
+		log.DebugContext(ctx, "Getting commit log from ledger repo")
 
 		ref, err := ledgerRepo.Head()
 		if err != nil {
@@ -94,7 +95,7 @@ var logCommand = &cobra.Command{
 		pagerCmd.Stdout = os.Stdout
 		pagerCmd.Stderr = os.Stderr
 
-		log.DebugContext(ctx, "Writing log output to pager", "pager", pager)
+		log.DebugContext(ctx, "Writing log of patches to pager", "pager", pager)
 
 		if err := pagerCmd.Run(); err != nil {
 			return err

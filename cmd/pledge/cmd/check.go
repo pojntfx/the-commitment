@@ -22,7 +22,8 @@ var (
 var checkCommand = &cobra.Command{
 	Use:     "check",
 	Aliases: []string{"c"},
-	Short:   "Check if a commit has been made for today",
+	Short:   "Check if you submitted a patch to your ledger today",
+	Long:    "Fetches the last commit from your ledger repository, checks if it was committed today and prints the associated patch",
 	Args:    cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := context.WithCancel(cmd.Context())
@@ -35,7 +36,7 @@ var checkCommand = &cobra.Command{
 
 		log := log.With("ledgerRepoDirectory", ledgerRepoDirectory)
 
-		log.DebugContext(ctx, "Checking for today's commit in ledger repo")
+		log.DebugContext(ctx, "Getting latest commit from ledger repo")
 
 		ref, err := ledgerRepo.Head()
 		if err != nil {
@@ -46,6 +47,8 @@ var checkCommand = &cobra.Command{
 		if err != nil {
 			return err
 		}
+
+		log.DebugContext(ctx, "Checking if latest commit was done today")
 
 		var (
 			now      = time.Now()
@@ -88,6 +91,10 @@ var checkCommand = &cobra.Command{
 			}
 		}
 
+		log = log.With("repo", repo, "patchFilePath", patchFilePath)
+
+		log.DebugContext(ctx, "Reading patch file for latest commit")
+
 		logOutput, logInput := io.Pipe()
 		go func() {
 			defer logInput.Close()
@@ -123,7 +130,7 @@ var checkCommand = &cobra.Command{
 		pagerCmd.Stdout = os.Stdout
 		pagerCmd.Stderr = os.Stderr
 
-		log.DebugContext(ctx, "Writing commit output to pager", "pager", pager)
+		log.DebugContext(ctx, "Writing patch to pager", "pager", pager)
 
 		if err := pagerCmd.Run(); err != nil {
 			return err

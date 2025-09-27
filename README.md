@@ -102,6 +102,8 @@ This document serves as a personal contract, hereinafter referred to as "The Com
 
 Signatories:
 
+- Felicitas Pojtinger (@pojntfx) (signed 2025-09-27)
+
 ### With Time For Rest
 
 This document serves as a personal contract, hereinafter referred to as "The Commitment," between the undersigned party (hereafter "Contributor") and the public.
@@ -119,7 +121,7 @@ This document serves as a personal contract, hereinafter referred to as "The Com
 
 Signatories:
 
-- Felicitas Pojtinger (@pojntfx) (signed 2024-01-01)
+- Felicitas Pojtinger (@pojntfx) (signed 2024-01-01, revoked 2025-09-27)
 
 ### Without Time For Rest
 

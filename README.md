@@ -258,7 +258,9 @@ To build and start a development version of pledge locally, run the following:
 ```shell
 $ git clone https://github.com/pojntfx/the-commitment.git
 $ cd the-commitment
-$ go run ./cmd/pledge --help
+$ make depend
+$ make && sudo make install
+$ pledge --help
 ```
 
 Have any questions or need help? Chat with us [on Matrix](https://matrix.to/#/#the-commitment:matrix.org?via=matrix.org)!

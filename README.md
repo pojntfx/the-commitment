@@ -112,7 +112,7 @@ This document serves as a personal contract, hereinafter referred to as "The Com
 2. **Frequency and Timing**: The Commit is to be made daily, with the stipulation that each Commit must be completed and submitted before the stroke of midnight, according to the local time zone of the Contributor.
 3. **Optional Commit Days**: The Contributor is granted the option to forgo the Commit on the following occasions:
    1. For periods officially designated by the Contributor's employer, who shall not be the Contributor themselves, as vacation or sick leave, with protocol varying as follows:
-      - **Vacation**: The start and end date must be documented and made world-readable in [optional-commit-days.csv](./optional-commit-days.csv). This documentation must occur prior to the start of the vacation period, according to the local time zone of the Contributor.
+      - **Vacation**: The start and end date must be documented and made world-readable in [optional-commit-days.csv](https://github.com/pojntfx/the-commitment/blob/c88f227b5d0e9411c638616e8aa2ed954109b93c/optional-commit-days.csv). This documentation must occur prior to the start of the vacation period, according to the local time zone of the Contributor.
       - **Sick Leave**: Same as for vacation, except the start and end date can be updated to include sick leave on the same day the leave is requested, according to the local time zone of the Contributor.
    2. On weekends, defined as Saturday and Sunday in the Contributor's local time zone.
 4. **License Agreement**: The Contributor affirms that all Commits made under this agreement will be licensed under an OSI-approved license, ensuring that the contributions align with open-source principles and standards.

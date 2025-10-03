@@ -139,8 +139,13 @@ Subject: [PATCH] %v---
 %v
 `, currentCommit.Hash.String(), currentCommit.Author.String(), currentCommit.Author.When.Format(time.RFC1123Z), currentCommit.Message, patch.String())
 
+			commitSubject := strings.Split(currentCommit.Message, "\n")[0]
+			if len(commitSubject) > 100 {
+				commitSubject = commitSubject[:100]
+			}
+
 			var (
-				patchFileName = fmt.Sprintf("%v", currentCommit.Author.When.Unix()) + "-" + url.PathEscape(strings.Split(currentCommit.Message, "\n")[0]) + "-" + currentCommit.Hash.String() + ".patch"
+				patchFileName = fmt.Sprintf("%v", currentCommit.Author.When.Unix()) + "-" + url.PathEscape(commitSubject) + "-" + currentCommit.Hash.String() + ".patch"
 				patchFilePath = filepath.Join(ledgerRepoDirectory, remoteDir, patchFileName)
 			)
 
